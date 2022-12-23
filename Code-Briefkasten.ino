@@ -3,7 +3,9 @@
 
 #include <PubSubClient.h>
 
-#define LIGHT_SENSOR_PIN 26
+#define LIGHT_SENSOR_PIN 33
+
+
 
 char mac[17];
 const char* ssid = "GuestWLANPortal";
@@ -11,8 +13,8 @@ const char* mqtt_server = "142.93.174.193";
 
 
 
-const char* topic1 = "zuerich/breifkasten/in";
-const char* topic2 = "zuerich/breifkasten/out";
+const char* topic1 = "zuerich/briefkasten/in";
+const char* topic2 = "zuerich/briefkasten/out";
 
 
 
@@ -86,37 +88,36 @@ void setup() {
 
 
 
-
+// isopen= 1, open
+//isopen = 0, closed
 
 // ESP32 pin GIOP36 (ADC0)
 
 void loop() {
-  if (!client.connected()) {
+  int isopen = 0;
+  while (true) {
+    if (!client.connected()) {
 
-    reconnect();
+      reconnect();
+    }
+    // reads the input on analog pin (value between 0 and 4095)
+    int analogValue = analogRead(LIGHT_SENSOR_PIN);
+
+    Serial.print("Analog Value = ");
+    Serial.print(analogValue);  // the raw analog reading
+
+    // We'll have a few threshholds, qualitatively determined
+    if (analogValue < 15 && isopen == 1) {
+      Serial.println(" => letter box closed");
+      isopen = 0;
+    } else if (analogValue > 15 && isopen == 0) {
+      Serial.println(" => letter box open");
+      isopen = 1;
+    }
+    char lightBuffer[10];
+    sprintf(lightBuffer, "%d", analogValue);
+    client.publish(topic1, lightBuffer);
+
+    delay(1000);
   }
-  // reads the input on analog pin (value between 0 and 4095)
-  int analogValue = analogRead(LIGHT_SENSOR_PIN);
-
-  Serial.print("Analog Value = ");
-  Serial.print(analogValue);  // the raw analog reading
-
-  // We'll have a few threshholds, qualitatively determined
-  if (analogValue < 40) {
-    Serial.println(" => Dark");
-  } else if (analogValue < 800) {
-    Serial.println(" => Dim");
-  } else if (analogValue < 2000) {
-    Serial.println(" => Light");
-  } else if (analogValue < 3200) {
-    Serial.println(" => Bright");
-  } else {
-    Serial.println(" => Very bright");
-  }
-  char lightBuffer[10];
-  sprintf(lightBuffer, "%f", analogValue);
-  client.publish(topic1, lightBuffer);
-
-  delay(1000);
-  client.loop();
 }
